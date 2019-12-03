@@ -32,7 +32,7 @@ should_exit = False
 def add_book(book, isbn):
     title = book['best_book']['title']
     small_image_url = book['best_book']['small_image_url']
-    image_url = small_image_url.split('_SX')[0] + "500_." + small_image_url.split('_.')[1]
+    image_url = small_image_url.split('_SX')[0] + "_SX500_." + small_image_url.split('_.')[1]
     year = book['original_publication_year']["#text"] if "@nil" not in book['original_publication_year'] else -1
     month = book['original_publication_month']["#text"] if "@nil" not in book['original_publication_month'] else -1
     day = book['original_publication_day']["#text"] if "@nil" not in book['original_publication_day'] else -1
