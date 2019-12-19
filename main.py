@@ -17,7 +17,7 @@ goodreads_key = config['goodreads_key']
 goodreads_url = "https://www.goodreads.com/search/index.xml"
 
 
-def scan():
+def do_scan():
     print("Awaiting scan...")
     return s.read(13).decode("UTF-8")
 
@@ -61,8 +61,6 @@ def add_book(book, isbn):
     wid = book['id']['#text']
     author_name = fix(book['best_book']['author']['name'])
     author_id = book['best_book']['author']['id']["#text"]
-    print(image_url)
-    exit()
     c = db.cursor()
     c.execute("INSERT INTO `" + books_table + "` " +
               "(`id`, `title`, `image_url`, `small_image_url`, `year`, `month`, `day`, `gr_id`, `w_id`," +
@@ -106,7 +104,7 @@ while not should_exit:
     elif action == "1":
         print()
         print("Enter an ISBN")
-        scan = scan()
+        scan = do_scan()
         r = requests.get(goodreads_url, {
             'key': goodreads_key,
             'q': scan
