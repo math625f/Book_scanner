@@ -96,11 +96,34 @@ def add_book(book, isbn):
     db.commit()
 
 
+def handle_add(search_term):
+    r = requests.get(goodreads_url, {
+        'key': goodreads_key,
+        'q': search_term
+    })
+    print("Searching for: " + search_term)
+    data = xmltodict.parse(r.content)
+    if not int(data['GoodreadsResponse']['search']['total-results']) < 1:
+        data = json.loads(json.dumps(data['GoodreadsResponse']['search']['results']['work']))
+        if "id" in data:
+            data = [data]
+        print("This book was scanned as '{}' - is this correct?".format(data[0]['best_book']["title"]))
+        print("[0] No!")
+        print("[1] Yes, that is correct")
+        action1 = input()
+        if action1 == "1":
+            print("Alright. Adding book to database")
+            add_book(data[0], search_term)
+    else:
+        print("No results")
+
+
 while not should_exit:
     print()
     print("What do you want to do?")
     print("[0] Exit program")
     print("[1] Scan book")
+    print("[2] Search by title")
     action = input()
     if action == "0":
         should_exit = True
@@ -108,25 +131,11 @@ while not should_exit:
         print()
         print("Enter an ISBN")
         scan = do_scan()
-        r = requests.get(goodreads_url, {
-            'key': goodreads_key,
-            'q': scan
-        })
-        print(scan)
-        data = xmltodict.parse(r.content)
-        if not int(data['GoodreadsResponse']['search']['total-results']) < 1:
-            data = json.loads(json.dumps(data['GoodreadsResponse']['search']['results']['work']))
-            if "id" in data:
-                data = [data]
-            print("This book was scanned as '{}' - is this correct?".format(data[0]['best_book']["title"]))
-            print("[0] No!")
-            print("[1] Yes, that is correct")
-            action1 = input()
-            if action1 == "1":
-                print("Alright. Adding book to database")
-                add_book(data[0], scan)
-        else:
-            print("No results.")
-
+        handle_add(scan)
+    elif action == "2":
+        print()
+        print("Enter the title of the book")
+        inp = input()
+        handle_add(inp)
     else:
         print("Please choose a valid action")
