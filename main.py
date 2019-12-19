@@ -2,15 +2,24 @@ import requests
 import xmltodict
 import json
 import mysql.connector
+from serial import Serial
+import re
 
 config = {}
 
 with open('env.json') as f:
     config = json.loads(f.read())
 
+s = Serial('COM3')
+
 # Goodreads stuff
 goodreads_key = config['goodreads_key']
 goodreads_url = "https://www.goodreads.com/search/index.xml"
+
+
+def scan():
+    print("Awaiting scan...")
+    return s.read(13).decode("UTF-8")
 
 
 # MySQL stuff
@@ -29,18 +38,31 @@ jnct_table = config['jnct_table']
 should_exit = False
 
 
+def fix(s):
+    buf = []
+
+    for i in range(0, len(s)):
+        if re.search("[a-zA-Z0-9\s]", s[i]):
+            buf.append(s[i])
+        else:
+            buf.append("&#{};".format(ord(s[i])))
+    return "".join(buf)
+
+
 def add_book(book, isbn):
-    title = book['best_book']['title']
+    title = fix(book['best_book']['title'])
     small_image_url = book['best_book']['small_image_url']
-    image_url = small_image_url.split('_SX')[0] + "_SX500_." + small_image_url.split('_.')[1]
+    image_url = small_image_url.split('._')[0] + "._SX500_." + small_image_url.split('_.')[1]
     year = book['original_publication_year']["#text"] if "@nil" not in book['original_publication_year'] else -1
     month = book['original_publication_month']["#text"] if "@nil" not in book['original_publication_month'] else -1
     day = book['original_publication_day']["#text"] if "@nil" not in book['original_publication_day'] else -1
     rating = book['average_rating']['#text'] if '#text' in book['average_rating'] else book['average_rating']
     bid = book['best_book']['id']['#text']
     wid = book['id']['#text']
-    author_name = book['best_book']['author']['name']
+    author_name = fix(book['best_book']['author']['name'])
     author_id = book['best_book']['author']['id']["#text"]
+    print(image_url)
+    exit()
     c = db.cursor()
     c.execute("INSERT INTO `" + books_table + "` " +
               "(`id`, `title`, `image_url`, `small_image_url`, `year`, `month`, `day`, `gr_id`, `w_id`," +
@@ -69,7 +91,7 @@ def add_book(book, isbn):
         c.execute("SELECT LAST_INSERT_ID()")
         print("Also adding new author to database")
         a_id = c.fetchone()[0]
-    c.execute("INSERT INTO `" + jnct_table + "` (`id`, `a_id`, `b_id`) VALUES (NULL, '{}', '{}')".format(a_id, b_id))
+    c.execute("INSERT INTO `" + jnct_table + "` (`id`, `a_id`, `b_id`, `l_id`) VALUES (NULL, '{}', '{}', {})".format(a_id, b_id, 1))
     db.commit()
 
 
@@ -84,7 +106,7 @@ while not should_exit:
     elif action == "1":
         print()
         print("Enter an ISBN")
-        scan = input()
+        scan = scan()
         r = requests.get(goodreads_url, {
             'key': goodreads_key,
             'q': scan
