@@ -19,7 +19,7 @@ goodreads_url = "https://www.goodreads.com/search/index.xml"
 
 def do_scan():
     print("Awaiting scan...")
-    return s.read(13).decode("UTF-8")
+    return s.read(15).decode("UTF-8")
 
 
 # MySQL stuff
@@ -52,7 +52,10 @@ def fix(s):
 def add_book(book, isbn):
     title = fix(book['best_book']['title'])
     small_image_url = book['best_book']['small_image_url']
-    image_url = small_image_url.split('._')[0] + "._SX500_." + small_image_url.split('_.')[1]
+    try:
+        image_url = small_image_url.split('._')[0] + "._SX500_." + small_image_url.split('_.')[1]
+    except IndexError:
+        image_url = small_image_url
     year = book['original_publication_year']["#text"] if "@nil" not in book['original_publication_year'] else -1
     month = book['original_publication_month']["#text"] if "@nil" not in book['original_publication_month'] else -1
     day = book['original_publication_day']["#text"] if "@nil" not in book['original_publication_day'] else -1
@@ -109,6 +112,7 @@ while not should_exit:
             'key': goodreads_key,
             'q': scan
         })
+        print(scan)
         data = xmltodict.parse(r.content)
         if not int(data['GoodreadsResponse']['search']['total-results']) < 1:
             data = json.loads(json.dumps(data['GoodreadsResponse']['search']['results']['work']))
@@ -118,7 +122,7 @@ while not should_exit:
             print("[0] No!")
             print("[1] Yes, that is correct")
             action1 = input()
-            if (action1 == "1"):
+            if action1 == "1":
                 print("Alright. Adding book to database")
                 add_book(data[0], scan)
         else:
