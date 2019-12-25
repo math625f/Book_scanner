@@ -56,6 +56,7 @@ def add_lang():
     print("What language do you want to add?")
     lang = input()
     print("What is the country code for this language? (Used to get flags, should be two letters)")
+    print("Please consult http://flag-icon-css.lip.is/ for help on finding the correct country code")
     cc = input()
     c.execute("INSERT INTO `{}` (`id`, `lang`, `country_code`) VALUES(NULL, '{}', {})".format(lang_table, lang, cc))
     c.execute("SELECT LAST_INSERT_ID()")
