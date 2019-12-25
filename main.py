@@ -55,7 +55,9 @@ def add_lang():
     c = db.cursor()
     print("What language do you want to add?")
     lang = input()
-    c.execute("INSERT INTO `{}` (`id`, `lang`) VALUES(NULL, '{}')".format(lang_table, lang))
+    print("What is the country code for this language? (Used to get flags, should be two letters)")
+    cc = input()
+    c.execute("INSERT INTO `{}` (`id`, `lang`, `country_code`) VALUES(NULL, '{}', {})".format(lang_table, lang, cc))
     c.execute("SELECT LAST_INSERT_ID()")
     l_id = c.fetchone()[0]
     db.commit()
