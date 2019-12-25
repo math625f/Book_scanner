@@ -33,12 +33,14 @@ db = mysql.connector.connect(
 author_table = config['author_table']
 books_table = config['books_table']
 jnct_table = config['jnct_table']
+lang_table = config['lang_table']
+series_table = config['series_table']
 
 # Main loop
 should_exit = False
 
 
-def fix(s):
+def unfix(s):
     buf = []
 
     for i in range(0, len(s)):
@@ -49,8 +51,39 @@ def fix(s):
     return "".join(buf)
 
 
+def add_lang():
+    c = db.cursor()
+    print("What language do you want to add?")
+    lang = input()
+    c.execute("INSERT INTO `{}` (`id`, `lang`) VALUES(NULL, '{}')".format(lang_table, lang))
+    c.execute("SELECT LAST_INSERT_ID()")
+    l_id = c.fetchone()[0]
+    db.commit()
+    return l_id
+
+
+def select_lang():
+    c = db.cursor()
+    c.execute("SELECT * FROM {} WHERE 1".format(lang_table))
+    res = c.fetchall()
+    print("Select a language from list, or add a new one")
+    print("[0] - Add new language")
+    choice = "-1"
+    ids = ["0"]
+    for l in res:
+        ids.append(str(l[0]))
+        print("[{}] - {}".format(l[0], l[1].capitalize()))
+    while choice not in ids:
+        choice = input()
+    if choice == "0":
+        choice = add_lang()
+    print(choice)
+    return choice
+
+
 def add_book(book, isbn):
-    title = fix(book['best_book']['title'])
+    lang = select_lang()
+    title = book['best_book']['title']
     small_image_url = book['best_book']['small_image_url']
     try:
         image_url = small_image_url.split('._')[0] + "._SX500_." + small_image_url.split('_.')[1]
@@ -62,14 +95,39 @@ def add_book(book, isbn):
     rating = book['average_rating']['#text'] if '#text' in book['average_rating'] else book['average_rating']
     bid = book['best_book']['id']['#text']
     wid = book['id']['#text']
-    author_name = fix(book['best_book']['author']['name'])
+    author_name = unfix(book['best_book']['author']['name'])
     author_id = book['best_book']['author']['id']["#text"]
     c = db.cursor()
+    b_title = "(".join(title.split("(")[:-1])
+    s_id = -1
+    if re.search('(\(.*,?\s#?[0-9]*\))', title):
+        s_title = " ".join(title.split("(")[-1].split(" ")[:-1])
+        s_num = title.split("(")[-1].split(" ")[-1].split(")")[0]
+        if s_num[0] == "#":
+            s_num = s_num[1:]
+        if s_title[-1] == ",":
+            s_title = s_title[0: -1]
+        c = db.cursor()
+        c.execute("SELECT `id`, `s_title` FROM {} WHERE `s_title` = LOWER('{}')".format(series_table, unfix(s_title)))
+        s_id = c.fetchone()
+        if s_id is None:  # Doesn't exist
+            c.execute("INSERT INTO {} (`id`, `s_title`) VALUES (NULL, LOWER('{}'))".format(series_table, unfix(s_title)))
+            c.execute("SELECT LAST_INSERT_ID()")
+            s_id = c.fetchone()[0]
+        else:  # Exists
+            s_id = s_id[0]
+        print("I'm number {} in the series '{}'".format(s_num, unfix(title)))
+    else:
+        c.execute("INSERT INTO {} (`id`, `s_title`) VALUES (NULL, LOWER('{}'))".format(series_table, unfix(title)))
+        c.execute("SELECT LAST_INSERT_ID()")
+        s_id = c.fetchone()[0]
+        print("I'm not a part of a series")
+
     c.execute("INSERT INTO `" + books_table + "` " +
               "(`id`, `title`, `image_url`, `small_image_url`, `year`, `month`, `day`, `gr_id`, `w_id`," +
               " `timestamp_added`, `rating`, `isbn_13`) " +
               "VALUES (NULL, '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', UNIX_TIMESTAMP(), '{}', '{}')".format(
-                  title,
+                  unfix(b_title),
                   image_url,
                   small_image_url,
                   year,
@@ -92,7 +150,7 @@ def add_book(book, isbn):
         c.execute("SELECT LAST_INSERT_ID()")
         print("Also adding new author to database")
         a_id = c.fetchone()[0]
-    c.execute("INSERT INTO `" + jnct_table + "` (`id`, `a_id`, `b_id`, `l_id`) VALUES (NULL, '{}', '{}', {})".format(a_id, b_id, 1))
+    c.execute("INSERT INTO `" + jnct_table + "` (`id`, `a_id`, `b_id`, `l_id`, `lang_id`, `s_id`, `s_index`) VALUES (NULL, '{}', '{}', {}, {}, {}, {})".format(a_id, b_id, 1, lang, s_id, s_num))
     db.commit()
 
 
@@ -107,7 +165,7 @@ def handle_add(search_term):
         data = json.loads(json.dumps(data['GoodreadsResponse']['search']['results']['work']))
         if "id" in data:
             data = [data]
-        print("This book was scanned as '{}' - is this correct?".format(data[0]['best_book']["title"]))
+        print("This book was scanned as '{}' by '{}' - is this correct?".format(data[0]['best_book']["title"], data[0]['best_book']['author']['name']))
         print("[0] No!")
         print("[1] Yes, that is correct")
         action1 = input()
