@@ -102,6 +102,7 @@ def add_book(book, isbn):
     author_id = book['best_book']['author']['id']["#text"]
     c = db.cursor()
     b_title = "(".join(title.split("(")[:-1])
+    b_title = b_title if len(b_title) > 0 else title
     s_id = -1
     if re.search('(\(.*,?\s#?[0-9]*\))', title):
         s_title = " ".join(title.split("(")[-1].split(" ")[:-1])
@@ -153,6 +154,10 @@ def add_book(book, isbn):
         c.execute("SELECT LAST_INSERT_ID()")
         print("Also adding new author to database")
         a_id = c.fetchone()[0]
+    try:
+        temp = int(s_num) + 2
+    except NameError:
+        s_num = 1
     c.execute("INSERT INTO `" + jnct_table + "` (`id`, `a_id`, `b_id`, `l_id`, `lang_id`, `s_id`, `s_index`) VALUES (NULL, '{}', '{}', {}, {}, {}, {})".format(a_id, b_id, 1, lang, s_id, s_num))
     db.commit()
 
@@ -171,10 +176,17 @@ def handle_add(search_term):
         print("This book was scanned as '{}' by '{}' - is this correct?".format(data[0]['best_book']["title"], data[0]['best_book']['author']['name']))
         print("[0] No!")
         print("[1] Yes, that is correct")
+        print("[2] I want to edit the title (Useful if the GoodReads API doesn't have series numbering in the title)")
         action1 = input()
         if action1 == "1":
             print("Alright. Adding book to database")
             add_book(data[0], search_term)
+        elif action1 == "2":
+            print("What should the title be? (Use the following structure for numbering books: '<BOOK TITLE> (<SERIES TITLE> #<SERIES INDEX>)')")
+            new_title = input()
+            data[0]['best_book']['title'] = new_title
+            add_book(data[0], search_term)
+
     else:
         print("No results")
 
