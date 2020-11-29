@@ -10,7 +10,11 @@ config = {}
 with open('env.json') as f:
     config = json.loads(f.read())
 
-s = Serial('COM3')
+try:
+    s = Serial('COM3')
+except:
+    print("Wasn't able to connect to Serial Port Scanner")
+    pass
 
 # Goodreads stuff
 goodreads_key = config['goodreads_key']
@@ -198,14 +202,14 @@ while not should_exit:
     print("[1] Scan book")
     print("[2] Search by title")
     action = input()
-    if action == "0":
+    if action == "0" or action == 0:
         should_exit = True
-    elif action == "1":
+    elif action == "1" or action == 1:
         print()
         print("Enter an ISBN")
         scan = do_scan()
         handle_add(scan)
-    elif action == "2":
+    elif action == "2" or action == 2:
         print()
         print("Enter the title of the book")
         inp = input()
